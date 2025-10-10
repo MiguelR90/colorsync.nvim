@@ -1,0 +1,46 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.28.0
+    hooks:
+      - id: gitleaks
+
+  # FIXME: Had to switch to local hook because the official stylua hook doesn't support
+  # --syntax LuaJIT flag (only supports 'All' or 'Lua51'). We need LuaJIT syntax to
+  # support goto statements in our theme extraction scripts.
+  - repo: local
+    hooks:
+      - id: stylua
+        name: StyLua (LuaJIT syntax)
+        entry: stylua
+        args:
+          - --syntax
+          - LuaJIT
+          - .
+        language: system        # Use system stylua (not managed by pre-commit)
+        types: [lua]            # Only run when .lua files change
+        pass_filenames: false   # Run "stylua --syntax LuaJIT ." exactly as-is (format all files)
+
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.12.0-2
+    hooks:
+      - id: shfmt
+        args:
+          - -w
+          - -ci
+          - -s
+          - -i
+          - '4'
+
+  # Interesting repo for checking mardown
+  # - repo: https://github.com/markdownlint/markdownlint
+  #   rev: v0.13.0
+  #   hooks:
+  #     - id: markdownlint

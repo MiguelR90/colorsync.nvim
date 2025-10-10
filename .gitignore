@@ -1,0 +1,19 @@
+# Ignore everything in Zed except for config jsons
+# There are database files and other kinds of editor caches
+# Unclear if Stow's symlink will work
+tmux/.config/tmux/*
+!tmux/.config/tmux/tmux.conf
+
+zed/.config/zed/*
+!zed/.config/zed/*.json
+zed/.config/zed/*_backup.json
+
+zsh/.zshsecrets
+.kiro/settings/*
+.vscode/*
+
+.kiro/
+.vscode/
+
+themes/.theme
+ghostty/.config/ghostty/theme.config
