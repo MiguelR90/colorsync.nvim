@@ -81,7 +81,7 @@ end
 function M.sync()
   local highlights = get_highlights()
   local palette = get_palette(highlights)
-  local generators = require('hue.generators')
+  local generators = require('colorsync.generators')
 
   local config_dir = vim.fs.joinpath('/tmp', 'colors')
   vim.fn.mkdir(config_dir, 'p')
@@ -108,7 +108,7 @@ end
 
 function M.create_commands()
   vim.api.nvim_create_autocmd('ColorScheme', {
-    group = vim.api.nvim_create_augroup('HueSyncAuGroup', { clear = true }),
+    group = vim.api.nvim_create_augroup('ColorSyncAuGroup', { clear = true }),
     callback = function(_)
       M.sync()
       vim.notify('ColorScheme synced by AutoCmd!', vim.log.levels.INFO)

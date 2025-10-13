@@ -15,8 +15,8 @@ if colorscheme and colorscheme ~= '' then
   print('Applying colorscheme: ' .. colorscheme)
   vim.cmd('colorscheme ' .. colorscheme)
   -- Call sync function
-  if pcall(require, 'hue') then
-    require('hue').sync()
+  if pcall(require, 'colorsync') then
+    require('colorsync').sync()
   end
   print('✓ Colorscheme applied and tools synced')
 else
