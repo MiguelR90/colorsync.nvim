@@ -34,18 +34,53 @@ local function get_highlights()
   return highlights
 end
 
+local ANSI_COLOR_MAP = {
+  -- Normal colors (0-7)
+  [0] = { groups = { 'Normal' }, attr = 'bg', desc = 'Black (background)' },
+  [1] = { groups = { 'ErrorMsg', 'DiffDelete', 'DiagnosticError' }, attr = 'fg', desc = 'Red' },
+  [2] = { groups = { 'String', 'DiffAdd', 'DiagnosticOk' }, attr = 'fg', desc = 'Green' },
+  [3] = { groups = { 'WarningMsg', 'DiffChange', 'DiagnosticWarn' }, attr = 'fg', desc = 'Yellow' },
+  [4] = { groups = { 'Function', 'Statement', 'DiagnosticInfo' }, attr = 'fg', desc = 'Blue' },
+  [5] = { groups = { 'Keyword', 'Type', 'PreProc' }, attr = 'fg', desc = 'Magenta' },
+  [6] = { groups = { 'Special', 'Identifier', 'DiagnosticHint' }, attr = 'fg', desc = 'Cyan' },
+  [7] = { groups = { 'Normal' }, attr = 'fg', desc = 'White (foreground)' },
+
+  -- Bright colors (8-15) - typically brighter versions
+  [8] = { groups = { 'Comment', 'LineNr', 'NonText' }, attr = 'fg', desc = 'Bright Black (gray)' },
+  [9] = { groups = { 'ErrorMsg', 'DiffDelete' }, attr = 'fg', desc = 'Bright Red' },
+  [10] = { groups = { 'String', 'DiffAdd' }, attr = 'fg', desc = 'Bright Green' },
+  [11] = { groups = { 'WarningMsg', 'Number' }, attr = 'fg', desc = 'Bright Yellow' },
+  [12] = { groups = { 'Function', 'Identifier' }, attr = 'fg', desc = 'Bright Blue' },
+  [13] = { groups = { 'Keyword', 'Constant' }, attr = 'fg', desc = 'Bright Magenta' },
+  [14] = { groups = { 'Special', 'Type' }, attr = 'fg', desc = 'Bright Cyan' },
+  [15] = { groups = { 'Normal', 'NormalFloat' }, attr = 'fg', desc = 'Bright White' },
+}
+
 -- Get the palette from terminal colors (i.e., 16 ANSI colors)
-local function get_palette()
+local function get_palette(highlights)
   local palette = {}
+  -- try to access terminal color palette directly
   for i = 0, 15 do
     palette[i] = to_hex(vim.g['terminal_color_' .. i])
+  end
+  -- fallback to highlight groups (might lead to inconsistent results)
+  for i = 0, 15 do
+    if palette[i] == nil then
+      local map = ANSI_COLOR_MAP[i]
+      for _, group in ipairs(map.groups) do
+        if highlights[group] and highlights[group][map.attr] then
+          palette[i] = highlights[group][map.attr]
+          break
+        end
+      end
+    end
   end
   return palette
 end
 
 function M.sync()
   local highlights = get_highlights()
-  local palette = get_palette()
+  local palette = get_palette(highlights)
   local generators = require('hue.generators')
 
   local config_dir = vim.fs.joinpath('/tmp', 'colors')
