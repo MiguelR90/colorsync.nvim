@@ -83,11 +83,12 @@ function M.sync()
   local palette = get_palette(highlights)
   local generators = require('colorsync.generators')
 
-  local config_dir = vim.fs.joinpath('/tmp', 'colors')
-  vim.fn.mkdir(config_dir, 'p')
+  local config_dir = vim.fs.dirname(vim.fn.stdpath('config'))
+  local colorsync_dir = vim.fs.joinpath(config_dir, 'colorsync')
+  vim.fn.mkdir(colorsync_dir, 'p')
 
   for name, gen in pairs(generators) do
-    local path = vim.fs.joinpath(config_dir, name)
+    local path = vim.fs.joinpath(colorsync_dir, name)
     local content = gen.generate(highlights, palette)
     vim.fn.writefile(content, path)
   end
@@ -106,18 +107,16 @@ function M.sync()
   })
 end
 
-function M.create_commands()
+function M.create_commands(_)
   vim.api.nvim_create_autocmd('ColorScheme', {
     group = vim.api.nvim_create_augroup('ColorSyncAuGroup', { clear = true }),
-    callback = function(_)
-      M.sync()
-      vim.notify('ColorScheme synced by AutoCmd!', vim.log.levels.INFO)
-    end,
+    callback = M.sync,
   })
 end
 
-function M.setup()
-  M.create_commands()
+function M.setup(opts)
+  M.create_commands(opts)
+  vim.cmd('colorscheme ' .. opts.colorscheme)
 end
 
 return M
