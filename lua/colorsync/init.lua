@@ -94,17 +94,21 @@ function M.sync()
   end
 
   --FIXME: Reloading ghostty should go somewhere else
-  vim.system({
-    'osascript',
-    '-e',
-    [[
-    tell application "System Events"
-        tell process "ghostty"
-            keystroke "r" using {command down}
-        end tell
-    end tell
-    ]],
-  })
+  if vim.fn.executable('osascript') == 1 then
+    vim.system({
+      'osascript',
+      '-e',
+      [[
+      tell application "System Events"
+          tell process "ghostty"
+              keystroke "r" using {command down}
+          end tell
+      end tell
+      ]],
+    })
+  else
+    vim.notify('Ghostty auto-reload config is not supported in Linux!!!', vim.log.levels.WARN)
+  end
 end
 
 function M.create_commands(_)
