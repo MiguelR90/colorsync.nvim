@@ -13,6 +13,7 @@
 
 - **Ghostty** - Terminal emulator 
 - **fzf** - Fuzzy finder 
+- **LazyGit** - Git terminal UI
 - _(More coming soon)_
 
 ## Installation
@@ -49,6 +50,18 @@ You can manually trigger synchronization:
 ```lua
 require("colorsync").sync()
 ```
+
+### LazyGit
+
+ColorSync writes the generated LazyGit theme to `~/.config/colorsync/lazygit`. Keep it separate from your
+regular LazyGit settings and load both files with LazyGit's built-in config merging:
+
+```sh
+export LG_CONFIG_FILE="$HOME/.config/lazygit/config.yml,$HOME/.config/colorsync/lazygit"
+```
+
+LazyGit merges the files from left to right, so the generated theme overrides theme values in the base
+configuration without replacing unrelated settings.
 
 ## Configuration
 

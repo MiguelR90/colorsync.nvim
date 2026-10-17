@@ -51,6 +51,11 @@ function M.generate(highlights, palette)
     or palette[12] -- blue fallback
   add_entry('optionsTextColor', options_text, false)
 
+  -- selectedLineFgColor: selected line foreground and attributes.
+  -- "default" preserves the existing text colors while disabling Lazygit's default bold style.
+  local selected_fg = highlights.Visual and highlights.Visual.fg or 'default'
+  add_entry('selectedLineFgColor', selected_fg, highlights.Visual and highlights.Visual.bold)
+
   -- selectedLineBgColor: selected line background (use Visual or CursorLine)
   local selected_bg = highlights.Visual and highlights.Visual.bg
     or highlights.CursorLine and highlights.CursorLine.bg
