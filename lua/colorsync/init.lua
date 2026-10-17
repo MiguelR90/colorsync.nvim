@@ -4,8 +4,12 @@ local M = {}
 local function to_hex(color)
   if type(color) == 'string' then
     -- Handle hex string (#rrggbb or #RGB)
-    if color:match('^#%x+$') then
+    if color:match('^#%x%x%x%x%x%x$') then
       return color:lower()
+    end
+    local red, green, blue = color:match('^#(%x)(%x)(%x)$')
+    if red then
+      return string.format('#%s%s%s%s%s%s', red, red, green, green, blue, blue):lower()
     end
     -- Handle rgb(255, 0, 0) format
     local r, g, b = color:match('rgb%((%d+),%s*(%d+),%s*(%d+)%)')
