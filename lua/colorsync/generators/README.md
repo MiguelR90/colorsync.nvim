@@ -136,21 +136,21 @@ ColorSync records both the direct highlight definition and the resolved result. 
 
 ## ANSI Terminal Palette
 
-The `terminal_palette` parameter provides 16 ANSI colors indexed from 0 through 15. These are not a colorscheme's private palette and an index does not inherently belong to a particular highlight group.
+The `terminal_palette` parameter provides the 16 ANSI colors the colorscheme stored in `vim.g.terminal_color_0` through `vim.g.terminal_color_15`. These are not a colorscheme's private palette, and an index does not belong to a particular highlight group. An unset global is nil. ColorSync does not fill it from a highlight.
 
-ColorSync first reads `vim.g.terminal_color_N`. When a colorscheme leaves a slot unset, ColorSync infers a fallback from a semantically related highlight. The report identifies which source supplied every slot.
+| Index | Conventional ANSI role |
+|-------|-------------------------|
+| 0 | Black |
+| 1 | Red |
+| 2 | Green |
+| 3 | Yellow |
+| 4 | Blue |
+| 5 | Magenta |
+| 6 | Cyan |
+| 7 | White |
+| 8–15 | Bright variants of 0–7 |
 
-| Index | Conventional ANSI role | ColorSync inference when unset |
-|-------|-------------------------|--------------------------------|
-| 0 | Black | `Normal.bg` |
-| 1 | Red | `ErrorMsg.fg`, `DiffDelete.fg`, or `DiagnosticError.fg` |
-| 2 | Green | `String.fg`, `DiffAdd.fg`, or `DiagnosticOk.fg` |
-| 3 | Yellow | `WarningMsg.fg`, `DiffChange.fg`, or `DiagnosticWarn.fg` |
-| 4 | Blue | `Function.fg`, `Statement.fg`, or `DiagnosticInfo.fg` |
-| 5 | Magenta | `Keyword.fg`, `Type.fg`, or `PreProc.fg` |
-| 6 | Cyan | `Special.fg`, `Identifier.fg`, or `DiagnosticHint.fg` |
-| 7 | White | `Normal.fg` |
-| 8–15 | Bright variants | Related muted, error, success, warning, accent, and foreground highlights |
+When a generator lists an ANSI slot in a candidate chain, a nil slot is skipped and the next candidate is used. Ask for a highlight group when the color should follow a semantic role such as an error or a function name.
 
 ## Usage in Generators
 

@@ -1,22 +1,22 @@
 local M = {}
 
-local ANSI_COLOR_MAP = {
-  [0] = { groups = { 'Normal' }, attr = 'bg', description = 'Black / background' },
-  [1] = { groups = { 'ErrorMsg', 'DiffDelete', 'DiagnosticError' }, attr = 'fg', description = 'Red' },
-  [2] = { groups = { 'String', 'DiffAdd', 'DiagnosticOk' }, attr = 'fg', description = 'Green' },
-  [3] = { groups = { 'WarningMsg', 'DiffChange', 'DiagnosticWarn' }, attr = 'fg', description = 'Yellow' },
-  [4] = { groups = { 'Function', 'Statement', 'DiagnosticInfo' }, attr = 'fg', description = 'Blue' },
-  [5] = { groups = { 'Keyword', 'Type', 'PreProc' }, attr = 'fg', description = 'Magenta' },
-  [6] = { groups = { 'Special', 'Identifier', 'DiagnosticHint' }, attr = 'fg', description = 'Cyan' },
-  [7] = { groups = { 'Normal' }, attr = 'fg', description = 'White / foreground' },
-  [8] = { groups = { 'Comment', 'LineNr', 'NonText' }, attr = 'fg', description = 'Bright black / gray' },
-  [9] = { groups = { 'ErrorMsg', 'DiffDelete' }, attr = 'fg', description = 'Bright red' },
-  [10] = { groups = { 'String', 'DiffAdd' }, attr = 'fg', description = 'Bright green' },
-  [11] = { groups = { 'WarningMsg', 'Number' }, attr = 'fg', description = 'Bright yellow' },
-  [12] = { groups = { 'Function', 'Identifier' }, attr = 'fg', description = 'Bright blue' },
-  [13] = { groups = { 'Keyword', 'Constant' }, attr = 'fg', description = 'Bright magenta' },
-  [14] = { groups = { 'Special', 'Type' }, attr = 'fg', description = 'Bright cyan' },
-  [15] = { groups = { 'Normal', 'NormalFloat' }, attr = 'fg', description = 'Bright white' },
+local ANSI_NAMES = {
+  [0] = 'Black',
+  [1] = 'Red',
+  [2] = 'Green',
+  [3] = 'Yellow',
+  [4] = 'Blue',
+  [5] = 'Magenta',
+  [6] = 'Cyan',
+  [7] = 'White',
+  [8] = 'Bright black',
+  [9] = 'Bright red',
+  [10] = 'Bright green',
+  [11] = 'Bright yellow',
+  [12] = 'Bright blue',
+  [13] = 'Bright magenta',
+  [14] = 'Bright cyan',
+  [15] = 'Bright white',
 }
 
 function M.to_hex(color)
@@ -69,7 +69,7 @@ local function capture_highlights()
   return resolved, definitions, names
 end
 
-local function capture_terminal_palette(highlights)
+local function capture_terminal_palette()
   local palette = {}
   local sources = {}
 
@@ -81,29 +81,13 @@ local function capture_terminal_palette(highlights)
       sources[index] = {
         kind = 'terminal',
         label = global_name,
-        description = ANSI_COLOR_MAP[index].description,
+        description = ANSI_NAMES[index],
       }
     else
-      local fallback = ANSI_COLOR_MAP[index]
-      for _, group in ipairs(fallback.groups) do
-        local value = highlights[group] and highlights[group][fallback.attr]
-        if value then
-          palette[index] = value
-          sources[index] = {
-            kind = 'highlight-fallback',
-            label = string.format('%s.%s', group, fallback.attr),
-            description = fallback.description,
-          }
-          break
-        end
-      end
-    end
-
-    if not sources[index] then
       sources[index] = {
         kind = 'unset',
         label = 'unset',
-        description = ANSI_COLOR_MAP[index].description,
+        description = ANSI_NAMES[index],
       }
     end
   end
@@ -113,7 +97,7 @@ end
 
 function M.capture()
   local highlights, definitions, names = capture_highlights()
-  local terminal_palette, terminal_sources = capture_terminal_palette(highlights)
+  local terminal_palette, terminal_sources = capture_terminal_palette()
 
   return {
     colorscheme = vim.g.colors_name or 'default',

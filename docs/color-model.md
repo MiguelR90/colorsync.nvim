@@ -31,7 +31,7 @@ flowchart LR
     mappings --> visualReport
 ```
 
-The two arrows from the private palette are important: highlights and ANSI colors are normally defined in parallel. Neovim does not derive one from the other. ColorSync only infers an ANSI color from a highlight when the colorscheme leaves that ANSI slot unset.
+The two arrows from the private palette are important: highlights and ANSI colors are defined in parallel. Neovim does not derive one from the other, and ColorSync does not either. A slot the colorscheme leaves unset stays unset.
 
 ## Vocabulary
 
@@ -102,7 +102,7 @@ The exact groups and values depend on the active colorscheme and installed plugi
 
 ## How the ANSI Palette Is Retrieved
 
-ColorSync first reads the globals set by the active colorscheme:
+ColorSync reads the globals set by the active colorscheme and nothing else:
 
 ```lua
 vim.g.terminal_color_0
@@ -110,33 +110,21 @@ vim.g.terminal_color_1
 -- through terminal_color_15
 ```
 
-Each resulting entry records both its value and its provenance.
-
 ```mermaid
 flowchart TD
     slot["ANSI slot N"]
     globalCheck{"terminal_color_N exists?"}
-    explicit["Use explicit terminal color"]
-    fallbackCheck["Try ordered highlight fallbacks"]
-    inferred["Use first available highlight color"]
+    explicit["Use that terminal color"]
     unset["Record slot as unset"]
 
     slot --> globalCheck
     globalCheck -->|Yes| explicit
-    globalCheck -->|No| fallbackCheck
-    fallbackCheck -->|Found| inferred
-    fallbackCheck -->|None| unset
+    globalCheck -->|No| unset
 ```
 
-For example, ANSI green at index 2 uses:
+A missing global stays nil. ColorSync does not borrow a highlight such as `Function.fg` to fill the gap: highlight groups do not have stable ANSI roles across colorschemes. Generators that want a semantic color ask for the highlight directly, and they skip an unset ANSI candidate.
 
-1. `vim.g.terminal_color_2`
-2. `String.fg`
-3. `DiffAdd.fg`
-4. `DiagnosticOk.fg`
-5. unset
-
-The highlight fallback is a ColorSync inference, not a rule imposed by Neovim. The visual report labels every ANSI slot as explicit, inferred, or unset.
+Each entry records its value and provenance. The visual report labels every slot as explicit or unset, and it still shows the conventional name (black, red, green, and so on) so the index is readable.
 
 ## The Captured Snapshot
 
@@ -154,7 +142,7 @@ highlight_names
 terminal_palette
   indexes 0 through 15
 terminal_sources
-  explicit, inferred, or unset provenance
+  explicit or unset provenance
 ```
 
 [`lua/colorsync/init.lua`](../lua/colorsync/init.lua) captures this data once per synchronization and passes the resolved highlights and terminal palette to every generator.
