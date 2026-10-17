@@ -2,99 +2,147 @@ local M = {}
 
 function M.generate(highlights, palette)
   local content = {}
+  highlights = highlights or {}
+  palette = palette or {}
 
   -- Start YAML structure
   table.insert(content, 'gui:')
   table.insert(content, '  theme:')
 
   -- Helper function to format color entry
-  local function add_entry(name, color, bold)
+  local function add_entry(name, color, modifiers)
     if color then
       table.insert(content, string.format('    %s:', name))
       table.insert(content, string.format('      - "%s"', color))
-      if bold then
-        table.insert(content, '      - bold')
+      for _, modifier in ipairs(modifiers or {}) do
+        table.insert(content, string.format('      - %s', modifier))
       end
       table.insert(content, '') -- split with new lines
     end
   end
 
-  -- Border colors (using treesitter highlight groups for better contrast)
-  -- activeBorderColor: focused window (use vibrant treesitter colors)
-  local active_border = highlights['@function'] and highlights['@function'].fg
-    or highlights['@keyword'] and highlights['@keyword'].fg
-    or highlights.Function and highlights.Function.fg
-    or palette[4]
-    or palette[12] -- blue fallback
-  add_entry('activeBorderColor', active_border, true)
+  local function hl(name, attr)
+    return highlights[name] and highlights[name][attr]
+  end
 
-  -- inactiveBorderColor: non-focused windows (use subtle treesitter colors)
-  local inactive_border = highlights['@comment'] and highlights['@comment'].fg
-    or highlights.Comment and highlights.Comment.fg
-    or highlights.NonText and highlights.NonText.fg
-    or palette[8] -- gray fallback
-  add_entry('inactiveBorderColor', inactive_border, false)
+  local function first(...)
+    for i = 1, select('#', ...) do
+      local value = select(i, ...)
+      if value then
+        return value
+      end
+    end
+  end
 
-  -- searchingActiveBorderColor: search mode (use vibrant treesitter colors)
-  local search_border = highlights['@string'] and highlights['@string'].fg
-    or highlights.String and highlights.String.fg
-    or highlights.IncSearch and highlights.IncSearch.bg
-    or palette[6]
-    or palette[14] -- cyan fallback
-  add_entry('searchingActiveBorderColor', search_border, true)
+  local function parse_hex(color)
+    local hex = type(color) == 'string' and color:match('^#(%x%x%x%x%x%x)$')
+    if not hex then
+      return nil
+    end
 
-  -- optionsTextColor: keybindings help (use treesitter type/keyword colors)
-  local options_text = highlights['@type'] and highlights['@type'].fg
-    or highlights.Type and highlights.Type.fg
-    or highlights.Function and highlights.Function.fg
-    or palette[4]
-    or palette[12] -- blue fallback
-  add_entry('optionsTextColor', options_text, false)
+    return tonumber(hex:sub(1, 2), 16), tonumber(hex:sub(3, 4), 16), tonumber(hex:sub(5, 6), 16)
+  end
+
+  local function relative_luminance(color)
+    local red, green, blue = parse_hex(color)
+    if not red then
+      return nil
+    end
+
+    local function linearize(channel)
+      channel = channel / 255
+      return channel <= 0.04045 and channel / 12.92 or ((channel + 0.055) / 1.055) ^ 2.4
+    end
+
+    red = linearize(red)
+    green = linearize(green)
+    blue = linearize(blue)
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+  end
+
+  local function contrast_ratio(first_color, second_color)
+    local first_luminance = relative_luminance(first_color)
+    local second_luminance = relative_luminance(second_color)
+    if not first_luminance or not second_luminance then
+      return 0
+    end
+
+    local lighter = math.max(first_luminance, second_luminance)
+    local darker = math.min(first_luminance, second_luminance)
+    return (lighter + 0.05) / (darker + 0.05)
+  end
+
+  local default_fg = first(hl('Normal', 'fg'), palette[7], palette[15])
+  local default_bg = first(hl('Normal', 'bg'), palette[0])
+
+  local function contrasting_text(background)
+    local foreground_ratio = contrast_ratio(background, default_fg)
+    local background_ratio = contrast_ratio(background, default_bg)
+    return background_ratio > foreground_ratio and default_bg or default_fg
+  end
+
+  local roles = {
+    accent = first(
+      hl('DiagnosticInfo', 'fg'),
+      hl('Title', 'fg'),
+      hl('@function', 'fg'),
+      hl('Function', 'fg'),
+      palette[4],
+      palette[12]
+    ),
+    muted = first(
+      hl('FloatBorder', 'fg'),
+      hl('WinSeparator', 'fg'),
+      hl('Comment', 'fg'),
+      hl('NonText', 'fg'),
+      palette[8]
+    ),
+    search = first(
+      hl('IncSearch', 'bg'),
+      hl('Search', 'bg'),
+      hl('IncSearch', 'fg'),
+      hl('Search', 'fg'),
+      palette[6],
+      palette[14]
+    ),
+    options = first(default_fg, hl('StatusLine', 'fg'), hl('@type', 'fg'), hl('Type', 'fg'), palette[4], palette[12]),
+    selection = first(hl('Visual', 'bg'), hl('PmenuSel', 'bg'), hl('CursorLine', 'bg'), palette[8]),
+    inactive_selection = 'default',
+    success = first(hl('DiffAdd', 'bg'), hl('DiagnosticOk', 'fg'), hl('String', 'fg'), palette[2], palette[10]),
+    warning = first(
+      hl('DiagnosticWarn', 'fg'),
+      hl('WarningMsg', 'fg'),
+      hl('DiffChange', 'bg'),
+      palette[3],
+      palette[11]
+    ),
+    error = first(hl('DiagnosticError', 'fg'), hl('DiffDelete', 'fg'), hl('ErrorMsg', 'fg'), palette[1], palette[9]),
+  }
+
+  add_entry('activeBorderColor', roles.accent, { 'bold' })
+  add_entry('inactiveBorderColor', roles.muted)
+  add_entry('searchingActiveBorderColor', roles.search, { 'bold' })
+  add_entry('optionsTextColor', roles.options)
 
   -- selectedLineFgColor: selected line foreground and attributes.
   -- "default" preserves the existing text colors while disabling Lazygit's default bold style.
   local selected_fg = highlights.Visual and highlights.Visual.fg or 'default'
-  add_entry('selectedLineFgColor', selected_fg, highlights.Visual and highlights.Visual.bold)
+  local selected_modifiers = {}
+  for _, modifier in ipairs({ 'bold', 'reverse', 'underline', 'strikethrough' }) do
+    if highlights.Visual and highlights.Visual[modifier] then
+      table.insert(selected_modifiers, modifier)
+    end
+  end
+  add_entry('selectedLineFgColor', selected_fg, selected_modifiers)
+  add_entry('selectedLineBgColor', roles.selection)
+  add_entry('inactiveViewSelectedLineBgColor', roles.inactive_selection)
 
-  -- selectedLineBgColor: selected line background (use Visual or CursorLine)
-  local selected_bg = highlights.Visual and highlights.Visual.bg
-    or highlights.CursorLine and highlights.CursorLine.bg
-    or palette[8] -- gray fallback
-  add_entry('selectedLineBgColor', selected_bg, false)
-
-  -- inactiveViewSelectedLineBgColor: selected line when unfocused (use CursorLine or dimmer)
-  local inactive_selected_bg = highlights.CursorLine and highlights.CursorLine.bg or palette[8] -- gray fallback
-  add_entry('inactiveViewSelectedLineBgColor', inactive_selected_bg, false)
-
-  -- cherryPickedCommitFgColor: copied commit foreground (use Identifier or Statement)
-  local cherry_fg = highlights.Identifier and highlights.Identifier.fg or palette[4] or palette[12] -- blue fallback
-  add_entry('cherryPickedCommitFgColor', cherry_fg, false)
-
-  -- cherryPickedCommitBgColor: copied commit background (use DiffAdd or cyan)
-  local cherry_bg = highlights.DiffAdd and highlights.DiffAdd.bg or palette[6] or palette[14] -- cyan fallback
-  add_entry('cherryPickedCommitBgColor', cherry_bg, false)
-
-  -- markedBaseCommitFgColor: rebase marker foreground (use Type or Keyword)
-  local marked_fg = highlights.Type and highlights.Type.fg or palette[4] or palette[12] -- blue fallback
-  add_entry('markedBaseCommitFgColor', marked_fg, false)
-
-  -- markedBaseCommitBgColor: rebase marker background (use WarningMsg or yellow)
-  local marked_bg = highlights.WarningMsg and highlights.WarningMsg.fg
-    or highlights.DiffChange and highlights.DiffChange.bg
-    or palette[3]
-    or palette[11] -- yellow fallback
-  add_entry('markedBaseCommitBgColor', marked_bg, false)
-
-  -- unstagedChangesColor: unstaged changes (use DiffDelete or ErrorMsg)
-  local unstaged = highlights.DiffDelete and highlights.DiffDelete.fg
-    or highlights.ErrorMsg and highlights.ErrorMsg.fg
-    or palette[1]
-    or palette[9] -- red fallback
-  add_entry('unstagedChangesColor', unstaged, false)
-
-  -- defaultFgColor: default text (use Normal foreground)
-  local default_fg = highlights.Normal and highlights.Normal.fg
-  add_entry('defaultFgColor', default_fg, false)
+  add_entry('cherryPickedCommitFgColor', contrasting_text(roles.success))
+  add_entry('cherryPickedCommitBgColor', roles.success)
+  add_entry('markedBaseCommitFgColor', contrasting_text(roles.warning))
+  add_entry('markedBaseCommitBgColor', roles.warning)
+  add_entry('unstagedChangesColor', roles.error)
+  add_entry('defaultFgColor', default_fg)
 
   return content
 end
