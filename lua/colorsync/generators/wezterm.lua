@@ -1,38 +1,65 @@
 local M = {}
 
-function M.generate(highlights, palette)
+function M.describe(highlights, terminal_palette)
+  local map = require('colorsync.mapping')
+  highlights = highlights or {}
+  terminal_palette = terminal_palette or {}
+  local mappings = {
+    map.entry('foreground', 'terminal foreground', { map.highlight(highlights, 'Normal', 'fg') }),
+    map.entry('background', 'terminal background', { map.highlight(highlights, 'Normal', 'bg') }),
+    map.entry('cursor_fg', 'cursor text', { map.highlight(highlights, 'Cursor', 'fg') }),
+    map.entry('cursor_bg', 'cursor background', { map.highlight(highlights, 'Cursor', 'bg') }),
+    map.entry('selection_fg', 'selection text', {
+      map.highlight(highlights, 'Visual', 'fg'),
+      map.highlight(highlights, 'Cursor', 'fg'),
+    }),
+    map.entry('selection_bg', 'selection background', {
+      map.highlight(highlights, 'Visual', 'bg'),
+      map.highlight(highlights, 'Cursor', 'bg'),
+    }),
+  }
+
+  for index = 0, 15 do
+    table.insert(
+      mappings,
+      map.entry(
+        index < 8 and string.format('ansi[%d]', index) or string.format('brights[%d]', index - 8),
+        'ANSI terminal color',
+        { map.terminal(terminal_palette, index) }
+      )
+    )
+  end
+
+  return mappings
+end
+
+function M.generate(highlights, terminal_palette)
   local content = {}
+  local mappings = M.describe(highlights, terminal_palette)
+  local by_target = {}
+  for _, mapping in ipairs(mappings) do
+    by_target[mapping.target] = mapping
+  end
 
   -- Start WezTerm configuration
   --FIXME: consider json instead of lua
   table.insert(content, 'local colors = {')
 
   -- Core colors
-  if highlights.Normal.fg then
-    table.insert(content, string.format("  foreground = '%s',", highlights.Normal.fg))
-  end
-  if highlights.Normal.bg then
-    table.insert(content, string.format("  background = '%s',", highlights.Normal.bg))
-  end
-  if highlights.Cursor.fg then
-    table.insert(content, string.format("  cursor_fg = '%s',", highlights.Cursor.fg))
-  end
-  if highlights.Cursor.bg then
-    table.insert(content, string.format("  cursor_bg = '%s',", highlights.Cursor.bg))
-  end
-  if highlights.Visual.fg or highlights.Cursor.fg then
-    table.insert(content, string.format("  selection_fg = '%s',", highlights.Visual.fg or highlights.Cursor.fg))
-  end
-  if highlights.Visual.bg or highlights.Cursor.bg then
-    table.insert(content, string.format("  selection_bg = '%s',", highlights.Visual.bg or highlights.Cursor.bg))
+  for _, target in ipairs({ 'foreground', 'background', 'cursor_fg', 'cursor_bg', 'selection_fg', 'selection_bg' }) do
+    local mapping = by_target[target]
+    if mapping.value then
+      table.insert(content, string.format("  %s = '%s',", target, mapping.value))
+    end
   end
 
   -- ANSI colors (0-7)
   table.insert(content, '  ansi = {')
   for i = 0, 7 do
-    if palette and palette[i] then
+    local value = by_target[string.format('ansi[%d]', i)].value
+    if value then
       local comma = i < 7 and ',' or ''
-      table.insert(content, string.format("    '%s'%s", palette[i], comma))
+      table.insert(content, string.format("    '%s'%s", value, comma))
     end
   end
   table.insert(content, '  },')
@@ -40,9 +67,10 @@ function M.generate(highlights, palette)
   -- Bright colors (8-15)
   table.insert(content, '  brights = {')
   for i = 8, 15 do
-    if palette and palette[i] then
+    local value = by_target[string.format('brights[%d]', i - 8)].value
+    if value then
       local comma = i < 15 and ',' or ''
-      table.insert(content, string.format("    '%s'%s", palette[i], comma))
+      table.insert(content, string.format("    '%s'%s", value, comma))
     end
   end
   table.insert(content, '  },')

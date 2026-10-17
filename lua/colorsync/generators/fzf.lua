@@ -1,31 +1,51 @@
 local M = {}
 
-function M.generate(highlights, palette)
-  local fg = highlights.Normal.fg or '#ffffff'
-  local bg = highlights.Normal.bg or '#000000'
+function M.describe(highlights, terminal_palette)
+  local map = require('colorsync.mapping')
+  highlights = highlights or {}
+  terminal_palette = terminal_palette or {}
 
-  -- Map palette colors to fzf color slots (ordered for consistency)
-  local fzf_colors = {
-    { 'fg', fg },
-    { 'bg', bg },
-    { 'hl', palette[4] or palette[12] or '#4fa6ed' },
-    { 'fg+', fg },
-    { 'bg+', palette[8] or bg },
-    { 'hl+', palette[12] or palette[4] or '#4fa6ed' },
-    { 'info', palette[6] or palette[14] or '#00ffff' },
-    { 'border', palette[8] or '#808080' },
-    { 'prompt', palette[2] or palette[10] or '#00ff00' },
-    { 'pointer', palette[5] or palette[13] or '#ff00ff' },
-    { 'marker', palette[3] or palette[11] or '#ffff00' },
-    { 'spinner', palette[6] or palette[14] or '#00ffff' },
-    { 'header', palette[4] or palette[12] or '#4fa6ed' },
-    { 'gutter', bg },
+  local function hl(group, attribute)
+    return map.highlight(highlights, group, attribute)
+  end
+
+  local function ansi(index)
+    return map.terminal(terminal_palette, index)
+  end
+
+  local function entry(target, role, candidates)
+    return map.entry(target, role, candidates)
+  end
+
+  return {
+    entry('fg', 'default text', { hl('Normal', 'fg'), map.literal('#ffffff', 'hardcoded fallback') }),
+    entry('bg', 'default background', { hl('Normal', 'bg'), map.literal('#000000', 'hardcoded fallback') }),
+    entry('hl', 'matched text', { ansi(4), ansi(12), map.literal('#4fa6ed', 'hardcoded fallback') }),
+    entry('fg+', 'selected text', { hl('Normal', 'fg'), map.literal('#ffffff', 'hardcoded fallback') }),
+    entry('bg+', 'selected background', {
+      ansi(8),
+      hl('Normal', 'bg'),
+      map.literal('#000000', 'hardcoded fallback'),
+    }),
+    entry('hl+', 'selected matched text', { ansi(12), ansi(4), map.literal('#4fa6ed', 'hardcoded fallback') }),
+    entry('info', 'informational text', { ansi(6), ansi(14), map.literal('#00ffff', 'hardcoded fallback') }),
+    entry('border', 'border', { ansi(8), map.literal('#808080', 'hardcoded fallback') }),
+    entry('prompt', 'prompt', { ansi(2), ansi(10), map.literal('#00ff00', 'hardcoded fallback') }),
+    entry('pointer', 'selection pointer', { ansi(5), ansi(13), map.literal('#ff00ff', 'hardcoded fallback') }),
+    entry('marker', 'multi-select marker', { ansi(3), ansi(11), map.literal('#ffff00', 'hardcoded fallback') }),
+    entry('spinner', 'loading spinner', { ansi(6), ansi(14), map.literal('#00ffff', 'hardcoded fallback') }),
+    entry('header', 'header', { ansi(4), ansi(12), map.literal('#4fa6ed', 'hardcoded fallback') }),
+    entry('gutter', 'list gutter', { hl('Normal', 'bg'), map.literal('#000000', 'hardcoded fallback') }),
   }
+end
+
+function M.generate(highlights, terminal_palette)
+  local mappings = M.describe(highlights, terminal_palette)
 
   -- Generate fzf config file format (plain text, no shell exports)
   local content = {}
-  for _, pair in ipairs(fzf_colors) do
-    table.insert(content, string.format('--color=%s:%s', pair[1], pair[2]))
+  for _, mapping in ipairs(mappings) do
+    table.insert(content, string.format('--color=%s:%s', mapping.target, mapping.value))
   end
 
   -- NOTE: keep otherwise command line is incorrectly configured

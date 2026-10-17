@@ -2,6 +2,17 @@
 
 This document provides a reference for Neovim highlight groups that can be used when creating colorscheme generators.
 
+## Mental Model
+
+A Neovim colorscheme has several related but distinct layers:
+
+1. **Private palette:** Names such as `bg0`, `red`, or `aqua` inside a colorscheme's implementation. Neovim does not define an API for this layer, so ColorSync cannot read it generically.
+2. **Highlight groups:** Semantic styles such as `Normal`, `Visual`, `DiagnosticError`, and `@function`. A group can define colors and modifiers directly or link to another group.
+3. **ANSI terminal palette:** The separate globals `vim.g.terminal_color_0` through `vim.g.terminal_color_15`, used by terminal applications running inside Neovim.
+4. **Integration targets:** Tool-specific fields selected from resolved highlights or ANSI slots through ordered fallback chains.
+
+ColorSync records both the direct highlight definition and the resolved result. Generators use the resolved result; the visual report preserves links so the relationship remains inspectable.
+
 ## Basic Highlight Groups
 
 | Group | Purpose | Typical Color |
@@ -123,56 +134,53 @@ This document provides a reference for Neovim highlight groups that can be used 
 | PreProc | @preproc (less common) |
 | Special | @variable.builtin / @constant.builtin |
 
-## Color Palette (ANSI 16 Colors)
+## ANSI Terminal Palette
 
-The `palette` parameter in generators provides access to the 16 ANSI terminal colors (0-15):
+The `terminal_palette` parameter provides 16 ANSI colors indexed from 0 through 15. These are not a colorscheme's private palette and an index does not inherently belong to a particular highlight group.
 
-| Index | Color | Typical Highlight Group | Description |
-|-------|-------|------------------------|-------------|
-| 0 | Black | Normal.bg | Background color |
-| 1 | Red | ErrorMsg.fg, DiffDelete | Error color |
-| 2 | Green | String.fg, DiffAdd | Success/string color |
-| 3 | Yellow | WarningMsg.fg, DiffChange | Warning color |
-| 4 | Blue | Function.fg, Statement | Primary accent |
-| 5 | Magenta | Keyword.fg, Type | Secondary accent |
-| 6 | Cyan | Special.fg, Identifier | Tertiary accent |
-| 7 | White | Normal.fg | Foreground color |
-| 8 | Bright Black (Gray) | Comment.fg, LineNr | Dimmed text |
-| 9 | Bright Red | ErrorMsg (bright) | Bright error |
-| 10 | Bright Green | String (bright) | Bright string |
-| 11 | Bright Yellow | Number | Bright warning |
-| 12 | Bright Blue | Function (bright) | Bright primary |
-| 13 | Bright Magenta | Keyword (bright) | Bright secondary |
-| 14 | Bright Cyan | Special (bright) | Bright tertiary |
-| 15 | Bright White | Normal (bright) | Bright foreground |
+ColorSync first reads `vim.g.terminal_color_N`. When a colorscheme leaves a slot unset, ColorSync infers a fallback from a semantically related highlight. The report identifies which source supplied every slot.
+
+| Index | Conventional ANSI role | ColorSync inference when unset |
+|-------|-------------------------|--------------------------------|
+| 0 | Black | `Normal.bg` |
+| 1 | Red | `ErrorMsg.fg`, `DiffDelete.fg`, or `DiagnosticError.fg` |
+| 2 | Green | `String.fg`, `DiffAdd.fg`, or `DiagnosticOk.fg` |
+| 3 | Yellow | `WarningMsg.fg`, `DiffChange.fg`, or `DiagnosticWarn.fg` |
+| 4 | Blue | `Function.fg`, `Statement.fg`, or `DiagnosticInfo.fg` |
+| 5 | Magenta | `Keyword.fg`, `Type.fg`, or `PreProc.fg` |
+| 6 | Cyan | `Special.fg`, `Identifier.fg`, or `DiagnosticHint.fg` |
+| 7 | White | `Normal.fg` |
+| 8–15 | Bright variants | Related muted, error, success, warning, accent, and foreground highlights |
 
 ## Usage in Generators
 
-When creating a generator, you receive two parameters:
+Every generator receives two parameters:
 
 1. **`highlights`**: A table of all highlight groups with their resolved colors
    - Access via: `highlights.Normal.fg`, `highlights.Function.bg`, etc.
    - Tree-sitter groups: `highlights['@string'].fg`, `highlights['@keyword'].fg`
 
-2. **`palette`**: A table of 16 ANSI colors indexed 0-15
-   - Access via: `palette[0]` through `palette[15]`
+2. **`terminal_palette`**: A table of 16 ANSI colors indexed 0-15
+   - Access via: `terminal_palette[0]` through `terminal_palette[15]`
+
+Generators also expose `describe(highlights, terminal_palette)`. Its entries contain the external target, semantic role, ordered candidates, selected source, value, and modifiers. Config generation and the visual report consume the same mapping definitions so they cannot drift.
 
 ### Example
 
 ```lua
-function M.generate(highlights, palette)
+function M.generate(highlights, terminal_palette)
   -- Use Normal foreground
   local fg = highlights.Normal.fg
-  
+
   -- Use tree-sitter string color
   local string_color = highlights['@string'] and highlights['@string'].fg
-  
-  -- Use palette green
-  local green = palette[2]
-  
+
+  -- Use ANSI green
+  local green = terminal_palette[2]
+
   -- With fallback chain
   local border = highlights['@function'] and highlights['@function'].fg
     or highlights.Function and highlights.Function.fg
-    or palette[4]
+    or terminal_palette[4]
 end
 ```

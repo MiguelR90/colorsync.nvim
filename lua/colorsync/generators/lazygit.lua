@@ -1,38 +1,9 @@
 local M = {}
 
-function M.generate(highlights, palette)
-  local content = {}
+function M.describe(highlights, terminal_palette)
+  local map = require('colorsync.mapping')
   highlights = highlights or {}
-  palette = palette or {}
-
-  -- Start YAML structure
-  table.insert(content, 'gui:')
-  table.insert(content, '  theme:')
-
-  -- Helper function to format color entry
-  local function add_entry(name, color, modifiers)
-    if color then
-      table.insert(content, string.format('    %s:', name))
-      table.insert(content, string.format('      - "%s"', color))
-      for _, modifier in ipairs(modifiers or {}) do
-        table.insert(content, string.format('      - %s', modifier))
-      end
-      table.insert(content, '') -- split with new lines
-    end
-  end
-
-  local function hl(name, attr)
-    return highlights[name] and highlights[name][attr]
-  end
-
-  local function first(...)
-    for i = 1, select('#', ...) do
-      local value = select(i, ...)
-      if value then
-        return value
-      end
-    end
-  end
+  terminal_palette = terminal_palette or {}
 
   local function parse_hex(color)
     local hex = type(color) == 'string' and color:match('^#(%x%x%x%x%x%x)$')
@@ -72,77 +43,153 @@ function M.generate(highlights, palette)
     return (lighter + 0.05) / (darker + 0.05)
   end
 
-  local default_fg = first(hl('Normal', 'fg'), palette[7], palette[15])
-  local default_bg = first(hl('Normal', 'bg'), palette[0])
+  local function hl(group, attribute)
+    return map.highlight(highlights, group, attribute)
+  end
+
+  local function ansi(index)
+    return map.terminal(terminal_palette, index)
+  end
+
+  local default_fg = map.entry('default foreground role', 'default foreground', {
+    hl('Normal', 'fg'),
+    ansi(7),
+    ansi(15),
+  })
+  local default_bg = map.entry('default background role', 'default background', {
+    hl('Normal', 'bg'),
+    ansi(0),
+  })
 
   local function contrasting_text(background)
-    local foreground_ratio = contrast_ratio(background, default_fg)
-    local background_ratio = contrast_ratio(background, default_bg)
-    return background_ratio > foreground_ratio and default_bg or default_fg
+    local foreground_ratio = contrast_ratio(background.value, default_fg.value)
+    local background_ratio = contrast_ratio(background.value, default_bg.value)
+    local selected = background_ratio > foreground_ratio and default_bg.selected or default_fg.selected
+    return map.derived(
+      selected and selected.value,
+      string.format(
+        'higher contrast of %s and %s against %s',
+        default_fg.selected and default_fg.selected.label or 'unset foreground',
+        default_bg.selected and default_bg.selected.label or 'unset background',
+        background.selected and background.selected.label or 'unset'
+      )
+    )
   end
 
   local roles = {
-    accent = first(
+    accent = map.entry('accent role', 'active accent', {
       hl('DiagnosticInfo', 'fg'),
       hl('Title', 'fg'),
       hl('@function', 'fg'),
       hl('Function', 'fg'),
-      palette[4],
-      palette[12]
-    ),
-    muted = first(
+      ansi(4),
+      ansi(12),
+    }),
+    muted = map.entry('muted role', 'muted UI', {
       hl('FloatBorder', 'fg'),
       hl('WinSeparator', 'fg'),
       hl('Comment', 'fg'),
       hl('NonText', 'fg'),
-      palette[8]
-    ),
-    search = first(
+      ansi(8),
+    }),
+    search = map.entry('search role', 'search emphasis', {
       hl('IncSearch', 'bg'),
       hl('Search', 'bg'),
       hl('IncSearch', 'fg'),
       hl('Search', 'fg'),
-      palette[6],
-      palette[14]
-    ),
-    options = first(default_fg, hl('StatusLine', 'fg'), hl('@type', 'fg'), hl('Type', 'fg'), palette[4], palette[12]),
-    selection = first(hl('Visual', 'bg'), hl('PmenuSel', 'bg'), hl('CursorLine', 'bg'), palette[8]),
-    inactive_selection = 'default',
-    success = first(hl('DiffAdd', 'bg'), hl('DiagnosticOk', 'fg'), hl('String', 'fg'), palette[2], palette[10]),
-    warning = first(
+      ansi(6),
+      ansi(14),
+    }),
+    options = map.entry('options role', 'option text', {
+      map.derived(
+        default_fg.value,
+        default_fg.selected and default_fg.selected.label or 'default foreground unavailable'
+      ),
+      hl('StatusLine', 'fg'),
+      hl('@type', 'fg'),
+      hl('Type', 'fg'),
+      ansi(4),
+      ansi(12),
+    }),
+    selection = map.entry('selection role', 'active selection background', {
+      hl('Visual', 'bg'),
+      hl('PmenuSel', 'bg'),
+      hl('CursorLine', 'bg'),
+      ansi(8),
+    }),
+    inactive_selection = map.entry('inactive selection role', 'inactive selection background', {
+      map.literal('default', 'Lazygit default color'),
+    }),
+    success = map.entry('success role', 'success background', {
+      hl('DiffAdd', 'bg'),
+      hl('DiagnosticOk', 'fg'),
+      hl('String', 'fg'),
+      ansi(2),
+      ansi(10),
+    }),
+    warning = map.entry('warning role', 'warning background', {
       hl('DiagnosticWarn', 'fg'),
       hl('WarningMsg', 'fg'),
       hl('DiffChange', 'bg'),
-      palette[3],
-      palette[11]
-    ),
-    error = first(hl('DiagnosticError', 'fg'), hl('DiffDelete', 'fg'), hl('ErrorMsg', 'fg'), palette[1], palette[9]),
+      ansi(3),
+      ansi(11),
+    }),
+    error = map.entry('error role', 'error text', {
+      hl('DiagnosticError', 'fg'),
+      hl('DiffDelete', 'fg'),
+      hl('ErrorMsg', 'fg'),
+      ansi(1),
+      ansi(9),
+    }),
   }
 
-  add_entry('activeBorderColor', roles.accent, { 'bold' })
-  add_entry('inactiveBorderColor', roles.muted)
-  add_entry('searchingActiveBorderColor', roles.search, { 'bold' })
-  add_entry('optionsTextColor', roles.options)
-
-  -- selectedLineFgColor: selected line foreground and attributes.
-  -- "default" preserves the existing text colors while disabling Lazygit's default bold style.
-  local selected_fg = highlights.Visual and highlights.Visual.fg or 'default'
   local selected_modifiers = {}
   for _, modifier in ipairs({ 'bold', 'reverse', 'underline', 'strikethrough' }) do
     if highlights.Visual and highlights.Visual[modifier] then
       table.insert(selected_modifiers, modifier)
     end
   end
-  add_entry('selectedLineFgColor', selected_fg, selected_modifiers)
-  add_entry('selectedLineBgColor', roles.selection)
-  add_entry('inactiveViewSelectedLineBgColor', roles.inactive_selection)
 
-  add_entry('cherryPickedCommitFgColor', contrasting_text(roles.success))
-  add_entry('cherryPickedCommitBgColor', roles.success)
-  add_entry('markedBaseCommitFgColor', contrasting_text(roles.warning))
-  add_entry('markedBaseCommitBgColor', roles.warning)
-  add_entry('unstagedChangesColor', roles.error)
-  add_entry('defaultFgColor', default_fg)
+  return {
+    map.entry('activeBorderColor', 'active panel border', roles.accent.candidates, { 'bold' }),
+    map.entry('inactiveBorderColor', 'inactive panel border', roles.muted.candidates),
+    map.entry('searchingActiveBorderColor', 'search panel border', roles.search.candidates, { 'bold' }),
+    map.entry('optionsTextColor', 'option text', roles.options.candidates),
+    map.entry('selectedLineFgColor', 'selected line text', {
+      hl('Visual', 'fg'),
+      map.literal('default', 'Lazygit default color'),
+    }, selected_modifiers),
+    map.entry('selectedLineBgColor', 'selected line background', roles.selection.candidates),
+    map.entry(
+      'inactiveViewSelectedLineBgColor',
+      'inactive selected line background',
+      roles.inactive_selection.candidates
+    ),
+    map.entry('cherryPickedCommitFgColor', 'cherry-picked commit text', { contrasting_text(roles.success) }),
+    map.entry('cherryPickedCommitBgColor', 'cherry-picked commit background', roles.success.candidates),
+    map.entry('markedBaseCommitFgColor', 'marked base commit text', { contrasting_text(roles.warning) }),
+    map.entry('markedBaseCommitBgColor', 'marked base commit background', roles.warning.candidates),
+    map.entry('unstagedChangesColor', 'unstaged change text', roles.error.candidates),
+    map.entry('defaultFgColor', 'default text', default_fg.candidates),
+  }
+end
+
+function M.generate(highlights, terminal_palette)
+  local content = {
+    'gui:',
+    '  theme:',
+  }
+
+  for _, mapping in ipairs(M.describe(highlights, terminal_palette)) do
+    if mapping.value then
+      table.insert(content, string.format('    %s:', mapping.target))
+      table.insert(content, string.format('      - "%s"', mapping.value))
+      for _, modifier in ipairs(mapping.modifiers) do
+        table.insert(content, string.format('      - %s', modifier))
+      end
+      table.insert(content, '')
+    end
+  end
 
   return content
 end

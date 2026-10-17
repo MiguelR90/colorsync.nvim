@@ -6,13 +6,13 @@
 
 - Sync colorschemes with external tools
 - Simple and lightweight with minimal overhead
-- Default integration with popular tools 
+- Default integration with popular tools
 - Native API (i.e. :colorscheme tokyonight just works)
 
 ## Supported Tools
 
-- **Ghostty** - Terminal emulator 
-- **fzf** - Fuzzy finder 
+- **Ghostty** - Terminal emulator
+- **fzf** - Fuzzy finder
 - **LazyGit** - Git terminal UI
 - _(More coming soon)_
 
@@ -74,10 +74,10 @@ require("colorsync").setup({
     fzf = true,
     ghostty = true,
   },
-  
+
   -- Auto-sync on colorscheme change
   auto_sync = true,
-  
+
   -- Show notifications when syncing
   notify = true,
 })
@@ -87,3 +87,24 @@ require("colorsync").setup({
 
 `colorsync.nvim` extracts color values from your active Neovim colorscheme and translates them into configuration formats compatible with each supported tool. When you change your Neovim colorscheme, it automatically updates configuration files or applies themes in real-time.
 
+## Explore a Colorscheme
+
+Generate a standalone HTML report for any installed colorscheme:
+
+```sh
+just color-report everforest
+```
+
+The report is written to `build/colorsync-everforest.html`. It explains and visualizes:
+
+- resolved highlight groups and their links, colors, and modifiers;
+- the separate 16-color ANSI terminal palette and where each value came from;
+- every ColorSync integration target, its selected Neovim source, and its fallback chain.
+
+Read the [ColorSync color model](docs/color-model.md) for diagrams and a complete walkthrough of the retrieval and mapping pipeline.
+
+Pass a second argument to choose another output path:
+
+```sh
+just color-report tokyonight /tmp/tokyonight-colors.html
+```

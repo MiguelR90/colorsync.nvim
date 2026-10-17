@@ -17,3 +17,6 @@ zsh/.zshsecrets
 
 themes/.theme
 ghostty/.config/ghostty/theme.config
+
+# Generated ColorSync visual reports
+build/
