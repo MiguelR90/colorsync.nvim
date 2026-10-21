@@ -149,14 +149,13 @@ terminal_sources
 
 ## How Integration Mappings Work
 
-[`lua/colorsync/mapping.lua`](../lua/colorsync/mapping.lua) provides four kinds of candidates:
+[`lua/colorsync/mapping.lua`](../lua/colorsync/mapping.lua) provides three kinds of candidates:
 
 | Candidate | Meaning |
 |---|---|
 | Highlight | A group attribute such as `Visual.bg` |
 | Terminal | An ANSI slot such as `terminal_color_4` |
 | Literal | A tool keyword or final hardcoded fallback |
-| Derived | A computed value, such as contrast-selected text |
 
 Each external target has an ordered candidate list. The first candidate with a value wins.
 
@@ -218,19 +217,13 @@ Lazygit's active border uses the first available candidate:
 ```mermaid
 flowchart LR
     target["activeBorderColor"]
-    info["DiagnosticInfo.fg"]
     title["Title.fg"]
-    tsFunction["@function.fg"]
-    functionGroup["Function.fg"]
-    ansiBlue["ANSI 4"]
-    ansiBrightBlue["ANSI 12"]
+    info["DiagnosticInfo.fg"]
 
-    target --> info --> title --> tsFunction --> functionGroup --> ansiBlue --> ansiBrightBlue
+    target --> title --> info
 ```
 
-The generated value also receives the `bold` modifier.
-
-Commit marker backgrounds use success or warning colors. Their foreground is computed by comparing the contrast of `Normal.fg` and `Normal.bg` against that chosen background and selecting the more readable one.
+Lazygit mappings copy compatible attributes without changing them. Commit marker text uses `Normal.fg`; backgrounds use only `DiffAdd.bg` or `DiffChange.bg`. If a suitable attribute is absent, ColorSync omits that property and lets Lazygit use its default instead of repurposing a foreground color as a background.
 
 ## Generate and Use the Visual Report
 

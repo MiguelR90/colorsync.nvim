@@ -24,14 +24,6 @@ function M.literal(value, label)
   }
 end
 
-function M.derived(value, label)
-  return {
-    kind = 'derived',
-    label = label,
-    value = value,
-  }
-end
-
 function M.entry(target, role, candidates, modifiers)
   local selected
   for _, candidate in ipairs(candidates) do
