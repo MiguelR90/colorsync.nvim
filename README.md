@@ -63,6 +63,25 @@ export LG_CONFIG_FILE="$HOME/.config/lazygit/config.yml,$HOME/.config/colorsync/
 LazyGit merges the files from left to right, so the generated theme overrides theme values in the base
 configuration without replacing unrelated settings.
 
+#### Difftastic Colors
+
+Difftastic chooses between regular and bright ANSI colors based on its `--background` option:
+
+- `--background=light` uses regular red and green (ANSI slots 1 and 2).
+- `--background=dark` uses bright red and green (ANSI slots 9 and 10).
+
+Prefer `--background=light` with Everforest:
+
+```yaml
+git:
+  diffRenderers:
+    #NOTE: "light" selects regular ANSI red/green; it does not change the terminal background.
+    - command: difft --color=always --background=light --display=inline --syntax-highlight=off
+      type: extDiff
+```
+
+Everforest blends its bright ANSI colors toward the foreground, which produces pale red and green that can wash out Difftastic output. The `--background` option selects ANSI intensity; it does not change the terminal's actual background.
+
 ## Configuration
 
 ```lua

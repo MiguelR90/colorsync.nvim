@@ -126,6 +126,14 @@ A missing global stays nil. ColorSync does not borrow a highlight such as `Funct
 
 Each entry records its value and provenance. The visual report labels every slot as explicit or unset, and it still shows the conventional name (black, red, green, and so on) so the index is readable.
 
+### Terminal Palette Lifecycle
+
+The terminal color globals are mutable session state. `:colorscheme` does not clear them automatically, so a colorscheme that does not set all 16 slots can inherit values left by the previously loaded scheme. ColorSync can tell whether a global exists, but it cannot tell which colorscheme assigned it; a stale value therefore looks explicit.
+
+Clean Neovim and the built-in `default` colorscheme leave these globals unset. Neovim then uses an internal fallback palette when a terminal buffer opens. That fallback is not exposed through `vim.g.terminal_color_N` or another public palette API, so ColorSync cannot capture it.
+
+Neovim reads the globals during `TermOpen`. Changing a colorscheme does not recolor terminal buffers that are already open; a newly opened terminal uses the values present at that time.
+
 ## The Captured Snapshot
 
 `require('colorsync.color_data').capture()` returns one snapshot:

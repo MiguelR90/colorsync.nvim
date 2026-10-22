@@ -73,6 +73,7 @@ local function capture_terminal_palette()
   local palette = {}
   local sources = {}
 
+  -- #NOTE: These globals survive :colorscheme changes unless the new scheme replaces or clears them.
   for index = 0, 15 do
     local global_name = 'terminal_color_' .. index
     local color = M.to_hex(vim.g[global_name])
@@ -84,6 +85,7 @@ local function capture_terminal_palette()
         description = ANSI_NAMES[index],
       }
     else
+      -- #NOTE: Neovim's internal fallback palette is not exposed through the public API.
       sources[index] = {
         kind = 'unset',
         label = 'unset',
